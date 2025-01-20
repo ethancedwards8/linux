@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config APFS_FS
+	tristate "Apple File System (APFS) support"
+	default y
+	depends on BLOCK
+	help
+	  WIP APFS Driver
