@@ -2,10 +2,8 @@
 
 APFS_VERSION = "1.0pre1"
 
-ccflags-y += -Wall -DAPFS_VERSION=\"$(APFS_VERSION)\"
+ccflags-y += -Wall -DAPFS_VERSION=\"$(APFS_VERSION)\" -I$(src)/include -DDEBUG
 
-obj-$(CONFIG_APFS_FS) += super.o
+obj-$(CONFIG_APFS_FS) += apfs.o
 
-ccflags-y += -I$(src)/include
-
-# apfs-objs := super.o
+apfs-objs := super.o
