@@ -1,11 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0
 /*
+ *  linux/fs/apfs/symlink.c
+ *
  * Copyright (C) 2018 Ernesto A. Fernández <ernesto.mnd.fernandez@gmail.com>
  */
 
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include "apfs.h"
+#include "message.h"
+#include "xattr.h"
 
 /**
  * apfs_get_link - Follow a symbolic link
@@ -20,60 +24,44 @@ static const char *apfs_get_link(struct dentry *dentry, struct inode *inode,
 				 struct delayed_call *done)
 {
 	struct super_block *sb = inode->i_sb;
-	struct apfs_nxsb_info *nxi = APFS_NXI(sb);
-	char *target = NULL;
-	int err;
+	char *target, *err;
 	int size;
 
-	down_read(&nxi->nx_big_sem);
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
-	if (!dentry) {
-		err = -ECHILD;
-		goto fail;
-	}
-
-	size = __apfs_xattr_get(inode, APFS_XATTR_NAME_SYMLINK,
-				NULL /* buffer */, 0 /* size */);
-	if (size < 0) { /* TODO: return a better error code */
-		err = size;
-		goto fail;
-	}
+	size = apfs_xattr_get(inode, APFS_XATTR_NAME_SYMLINK,
+			      NULL /* buffer */, 0 /* size */);
+	if (size < 0) /* TODO: return a better error code */
+		return ERR_PTR(size);
 
 	target = kmalloc(size, GFP_KERNEL);
-	if (!target) {
-		err = -ENOMEM;
-		goto fail;
-	}
+	if (!target)
+		return ERR_PTR(-ENOMEM);
 
-	size = __apfs_xattr_get(inode, APFS_XATTR_NAME_SYMLINK, target, size);
+	size = apfs_xattr_get(inode, APFS_XATTR_NAME_SYMLINK, target, size);
 	if (size < 0) {
-		err = size;
+		err = ERR_PTR(size);
 		goto fail;
 	}
 	if (size == 0 || *(target + size - 1) != 0) {
 		/* Target path must be NULL-terminated */
 		apfs_alert(sb, "bad link target in inode 0x%llx",
-			   apfs_ino(inode));
-		err = -EFSCORRUPTED;
+			   (unsigned long long) inode->i_ino);
+		err = ERR_PTR(-EFSCORRUPTED);
 		goto fail;
 	}
 
-	up_read(&nxi->nx_big_sem);
 	set_delayed_call(done, kfree_link, target);
 	return target;
 
 fail:
 	kfree(target);
-	up_read(&nxi->nx_big_sem);
-	return ERR_PTR(err);
+	return err;
 }
 
 const struct inode_operations apfs_symlink_inode_operations = {
 	.get_link	= apfs_get_link,
 	.getattr	= apfs_getattr,
 	.listxattr	= apfs_listxattr,
-	.update_time	= apfs_update_time,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) /* Now this is the default */
-	.readlink	= generic_readlink,
-#endif
 };

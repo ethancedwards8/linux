@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Apple File System (APFS)
+# Makefile for the Linux APFS filesystem routines.
+#
 
 obj-$(CONFIG_APFS_FS) += apfs.o
 

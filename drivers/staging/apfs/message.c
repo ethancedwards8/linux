@@ -1,10 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0
 /*
+ *  linux/fs/apfs/message.c
+ *
  * Copyright (C) 2018 Ernesto A. Fernández <ernesto.mnd.fernandez@gmail.com>
  */
 
 #include <linux/fs.h>
-#include "apfs.h"
+#include "message.h"
 
 void apfs_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
 {

@@ -1,8 +1,20 @@
-# SPDX-License-Identifier: GPL-2.0
-
 config APFS_FS
-	tristate "Apple File System (APFS) support"
-	default y
-	depends on BLOCK
+	tristate "APFS filesystem support"
+	select LIBCRC32C
+	select NLS
 	help
-	  WIP APFS Driver
+	  This module provides a small degree of experimental support for the
+	  Apple File System (APFS).
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called apfs.
+
+	  This module is out-of-tree, so if you are reading this you probably
+	  want to choose Y or M.
+
+config APFS_DEBUG
+	bool "APFS debugging support"
+	depends on APFS_FS
+	help
+	  Enable the debugging features for apfs. This may hurt performance,
+	  so say N if you are not a developer.

@@ -1,11 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0
 /*
+ *  linux/fs/apfs/namei.c
+ *
  * Copyright (C) 2018 Ernesto A. Fernández <ernesto.mnd.fernandez@gmail.com>
  */
 
-#include <linux/namei.h>
 #include "apfs.h"
+#include "dir.h"
+#include "inode.h"
+#include "key.h"
+#include "super.h"
 #include "unicode.h"
+#include "xattr.h"
 
 static struct dentry *apfs_lookup(struct inode *dir, struct dentry *dentry,
 				  unsigned int flags)
@@ -30,43 +36,15 @@ static struct dentry *apfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0)
-static int apfs_symlink(struct inode *dir, struct dentry *dentry,
-			const char *symname)
-#else
-static int apfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
-			struct dentry *dentry, const char *symname)
-#endif
-{
-	/* Symlink permissions don't mean anything and their value is fixed */
-	return apfs_mkany(dir, dentry, S_IFLNK | 0x1ed, 0 /* rdev */, symname);
-}
-
 const struct inode_operations apfs_dir_inode_operations = {
-	.create		= apfs_create,
 	.lookup		= apfs_lookup,
-	.link		= apfs_link,
-	.unlink		= apfs_unlink,
-	.symlink	= apfs_symlink,
-	.mkdir		= apfs_mkdir,
-	.rmdir		= apfs_rmdir,
-	.mknod		= apfs_mknod,
-	.rename		= apfs_rename,
 	.getattr	= apfs_getattr,
 	.listxattr      = apfs_listxattr,
-	.setattr	= apfs_setattr,
-	.update_time	= apfs_update_time,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
-	.fileattr_get	= apfs_fileattr_get,
-	.fileattr_set	= apfs_fileattr_set,
-#endif
 };
 
 const struct inode_operations apfs_special_inode_operations = {
 	.getattr	= apfs_getattr,
 	.listxattr      = apfs_listxattr,
-	.setattr	= apfs_setattr,
-	.update_time	= apfs_update_time,
 };
 
 static int apfs_dentry_hash(const struct dentry *dir, struct qstr *child)
@@ -75,10 +53,7 @@ static int apfs_dentry_hash(const struct dentry *dir, struct qstr *child)
 	unsigned long hash;
 	bool case_fold = apfs_is_case_insensitive(dir->d_sb);
 
-	if (!apfs_is_normalization_insensitive(dir->d_sb))
-		return 0;
-
-	apfs_init_unicursor(&cursor, child->name, child->len);
+	apfs_init_unicursor(&cursor, child->name);
 	hash = init_name_hash(dir);
 
 	while (1) {
@@ -104,32 +79,10 @@ static int apfs_dentry_hash(const struct dentry *dir, struct qstr *child)
 static int apfs_dentry_compare(const struct dentry *dentry, unsigned int len,
 			       const char *str, const struct qstr *name)
 {
-	return apfs_filename_cmp(dentry->d_sb, name->name, name->len, str, len);
-}
-
-static int apfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
-{
-	struct super_block *sb = dentry->d_sb;
-
-	if (flags & LOOKUP_RCU)
-		return -ECHILD;
-
-	/*
-	 * If we want to create a link with a name that normalizes to the same
-	 * as an existing negative dentry, then we first need to invalidate the
-	 * dentry; otherwise it would keep the existing name.
-	 */
-	if (d_really_is_positive(dentry))
-		return 1;
-	if (!apfs_is_case_insensitive(sb) && !apfs_is_normalization_insensitive(sb))
-		return 1;
-	if (flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
-		return 0;
-	return 1;
+	return apfs_filename_cmp(dentry->d_sb, name->name, str);
 }
 
 const struct dentry_operations apfs_dentry_operations = {
-	.d_revalidate	= apfs_dentry_revalidate,
 	.d_hash		= apfs_dentry_hash,
 	.d_compare	= apfs_dentry_compare,
 };
