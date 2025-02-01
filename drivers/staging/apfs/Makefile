@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
-
-APFS_VERSION = "1.0pre1"
-
-ccflags-y += -Wall -DAPFS_VERSION=\"$(APFS_VERSION)\" -I$(src)/include -DDEBUG
+#
+# Makefile for Apple File System (APFS)
 
 obj-$(CONFIG_APFS_FS) += apfs.o
 
-apfs-objs := super.o
+apfs-y := btree.o dir.o extents.o file.o inode.o key.o message.o \
+	  namei.o node.o object.o super.o symlink.o unicode.o xattr.o
